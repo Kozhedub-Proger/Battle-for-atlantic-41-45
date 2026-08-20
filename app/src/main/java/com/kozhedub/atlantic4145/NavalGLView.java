@@ -9,6 +9,8 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.util.Random;
+import javax.microedition.khronos.egl.EGLConfig;
+import javax.microedition.khronos.opengles.GL10;
 
 public class NavalGLView extends GLSurfaceView {
     public interface GameListener { void onHit(int hp, boolean sunk); void onMiss(); }
@@ -67,7 +69,7 @@ public class NavalGLView extends GLSurfaceView {
 
         private final float px=-8f,pz=5f, ex=8f,ez=-8f;
 
-        @Override public void onSurfaceCreated(javax.microedition.khronos.egl.EGLConfig cfg) {
+        @Override public void onSurfaceCreated(GL10 gl, EGLConfig cfg) {
             GLES20.glClearColor(.045f,.12f,.18f,1);
             GLES20.glEnable(GLES20.GL_DEPTH_TEST);
             GLES20.glEnable(GLES20.GL_CULL_FACE);
@@ -83,12 +85,12 @@ public class NavalGLView extends GLSurfaceView {
             cube=Mesh.cube(); wedge=Mesh.wedge(); water=Mesh.waterGrid(44,3.0f);
         }
 
-        @Override public void onSurfaceChanged(javax.microedition.khronos.egl.EGLConfig cfg,int w,int h) {
+        @Override public void onSurfaceChanged(GL10 gl,int w,int h) {
             GLES20.glViewport(0,0,w,h);
             Matrix.perspectiveM(proj,0,46f,(float)w/Math.max(1,h),.1f,180f);
         }
 
-        @Override public void onDrawFrame(javax.microedition.khronos.egl.EGLConfig cfg) {
+        @Override public void onDrawFrame(GL10 gl) {
             long now=System.nanoTime(); float dt=Math.min(.05f,(now-last)/1_000_000_000f); last=now; time=(now-start)/1_000_000_000f;
             update(dt);
             GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT|GLES20.GL_DEPTH_BUFFER_BIT);
