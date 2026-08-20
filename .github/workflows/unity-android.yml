@@ -1,0 +1,59 @@
+name: Unity Android APK
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'unity/**'
+      - '.github/workflows/unity-android.yml'
+  workflow_dispatch:
+
+jobs:
+  build-unity-android:
+    runs-on: ubuntu-latest
+    env:
+      UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      - name: Compute version 0.0.0.NNN
+        id: ver
+        shell: bash
+        run: |
+          COUNT=$(git rev-list --count HEAD)
+          printf -v PAD "%03d" "$COUNT"
+          VERSION="0.0.0.${PAD}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "code=$COUNT" >> "$GITHUB_OUTPUT"
+          echo "Unity build version: $VERSION"
+
+      - name: Check Unity license secret
+        shell: bash
+        run: |
+          if [ -z "$UNITY_LICENSE" ]; then
+            echo "::error::UNITY_LICENSE secret is missing. Unity cannot legally run the Editor in CI without activation. Add repository secret UNITY_LICENSE, then re-run this workflow."
+            exit 1
+          fi
+
+      - name: Build REAL Unity Android APK
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          ATLANTIC_VERSION: ${{ steps.ver.outputs.version }}
+          ATLANTIC_BUILD_CODE: ${{ steps.ver.outputs.code }}
+        with:
+          projectPath: unity
+          unityVersion: 2022.3.62f1
+          targetPlatform: Android
+          buildMethod: Atlantic4145.Editor.CIBuild.PerformBuild
+          androidExportType: androidPackage
+
+      - name: Upload Unity APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Battle-for-Atlantic-Unity-${{ steps.ver.outputs.version }}
+          path: build/Android/**/*.apk
+          if-no-files-found: error
