@@ -24,6 +24,15 @@ namespace BattleForAtlantic.EditorTools
             EditorApplication.delayCall += EnsureProject;
         }
 
+        [MenuItem("Battle for Atlantic/Open Main Scene")]
+        public static void OpenMainScene()
+        {
+            if (!File.Exists(ScenePath))
+                CreateStarterScene(true);
+            else
+                EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+        }
+
         [MenuItem("Battle for Atlantic/Fix URP and rebuild starter scene")]
         public static void FixUrpAndRebuild()
         {
@@ -48,10 +57,8 @@ namespace BattleForAtlantic.EditorTools
 
             PlayerSettings.productName = "Сражения в Атлантике 41–45";
             PlayerSettings.companyName = "Kozhedub-Proger";
-            PlayerSettings.bundleVersion = "0.0.0.002";
+            PlayerSettings.bundleVersion = "0.0.0.003";
 
-            // Existing bootstrap scene from v0.0.0.001 may contain a magenta material,
-            // so repair it automatically after URP becomes active.
             if (!File.Exists(ScenePath))
                 CreateStarterScene(false);
             else
@@ -62,6 +69,20 @@ namespace BattleForAtlantic.EditorTools
                 File.WriteAllText(MarkerPath, "Unity 6.3 LTS project initialized.\n");
                 AssetDatabase.Refresh();
             }
+
+            // Unity may reopen an empty Untitled scene after a package/domain reload.
+            // Always finish bootstrap with the actual game scene active.
+            EditorApplication.delayCall += EnsureMainSceneIsOpen;
+        }
+
+        private static void EnsureMainSceneIsOpen()
+        {
+            if (EditorApplication.isPlayingOrWillChangePlaymode) return;
+            if (!File.Exists(ScenePath)) return;
+
+            Scene active = SceneManager.GetActiveScene();
+            if (active.path != ScenePath)
+                EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
         }
 
         private static void CreateFolders()
@@ -105,7 +126,7 @@ namespace BattleForAtlantic.EditorTools
 
             if (shader == null)
             {
-                Debug.LogError("[BattleForAtlantic] URP/Lit shader was not found. Check that com.unity.render-pipelines.universal is installed.");
+                Debug.LogError("[BattleForAtlantic] URP/Lit shader was not found. Check com.unity.render-pipelines.universal.");
                 return mat;
             }
 
@@ -133,14 +154,19 @@ namespace BattleForAtlantic.EditorTools
             Material waterMat = CreateOrRepairWaterMaterial();
             if (waterMat == null) return;
 
-            Scene scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
-            GameObject ocean = GameObject.Find("Ocean_Placeholder");
-            if (ocean != null && ocean.TryGetComponent<Renderer>(out Renderer renderer))
+            // Do not switch scenes here; only repair the asset. The final delayed callback
+            // opens Main once bootstrap/package initialization is fully finished.
+            Scene current = SceneManager.GetActiveScene();
+            if (current.path == ScenePath)
             {
-                renderer.sharedMaterial = waterMat;
-                EditorUtility.SetDirty(renderer);
-                EditorSceneManager.MarkSceneDirty(scene);
-                EditorSceneManager.SaveScene(scene);
+                GameObject ocean = GameObject.Find("Ocean_Placeholder");
+                if (ocean != null && ocean.TryGetComponent<Renderer>(out Renderer renderer))
+                {
+                    renderer.sharedMaterial = waterMat;
+                    EditorUtility.SetDirty(renderer);
+                    EditorSceneManager.MarkSceneDirty(current);
+                    EditorSceneManager.SaveScene(current);
+                }
             }
         }
 
@@ -198,7 +224,8 @@ namespace BattleForAtlantic.EditorTools
             EditorSceneManager.SaveScene(scene, ScenePath);
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
             AssetDatabase.SaveAssets();
-            Debug.Log("[BattleForAtlantic] Starter scene created: " + ScenePath);
+            EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+            Debug.Log("[BattleForAtlantic] Starter scene created and opened: " + ScenePath);
         }
     }
 }
