@@ -8,6 +8,28 @@ echo   Battle for Atlantic 41-45 - Unity launcher
 echo ================================================
 echo.
 
+if exist ".git" (
+    where git >nul 2>nul
+    if %errorlevel%==0 (
+        echo [UPDATE] Pulling latest project changes...
+        git pull --ff-only
+        if errorlevel 1 (
+            echo [WARNING] git pull failed. Project will still be launched.
+        ) else (
+            echo [OK] Project updated.
+        )
+        echo.
+    ) else (
+        echo [WARNING] Git is not available in PATH. Skipping update.
+        echo.
+    )
+) else (
+    echo [INFO] This folder is not a Git clone ^(no .git folder^).
+    echo [INFO] Automatic pull is unavailable for ZIP copies.
+    echo [INFO] Download a fresh ZIP or clone the repository once to enable auto-update.
+    echo.
+)
+
 if not exist "Assets" mkdir "Assets"
 if not exist "Assets\Scenes" mkdir "Assets\Scenes"
 if not exist "Assets\Ships" mkdir "Assets\Ships"
